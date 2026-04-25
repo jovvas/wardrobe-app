@@ -25,7 +25,7 @@ export default async function handler(req, res) {
   // Build a readable wardrobe list for the prompt
   const wardrobeList = wardrobe
     .map(item =>
-      `• ${item.name} — ${item.category}, ${item.colour}`
+      `• ${item.name}${item.brand ? ` (${item.brand})` : ''} — ${item.category}, ${item.colour}`
     )
     .join('\n')
 

@@ -26,7 +26,7 @@ export default function OutfitSuggester() {
       // Fetch wardrobe
       const { data: wardrobe, error: dbErr } = await supabase
         .from('wardrobe_items')
-        .select('id, name, category, colour')
+        .select('id, name, category, colour, brand')
       if (dbErr) throw dbErr
 
       if (!wardrobe || wardrobe.length === 0) {

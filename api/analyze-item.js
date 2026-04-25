@@ -24,7 +24,8 @@ export default async function handler(req, res) {
     `{\n` +
     `  "name": "concise descriptive name, e.g. Navy linen blazer",\n` +
     `  "category": "one of: Tops | Bottoms | Dresses | Outerwear | Shoes | Accessories | Bags",\n` +
-    `  "colour": "colour description, e.g. Dusty rose"\n` +
+    `  "colour": "colour description, e.g. Dusty rose",\n` +
+    `  "brand": "brand name if visible or recognisable, otherwise empty string"\n` +
     `}`
 
   try {
@@ -69,6 +70,7 @@ export default async function handler(req, res) {
       name:     typeof parsed.name === 'string'   ? parsed.name.trim()   : '',
       category: VALID_CATEGORIES.includes(parsed.category) ? parsed.category : 'Tops',
       colour:   typeof parsed.colour === 'string' ? parsed.colour.trim() : '',
+      brand:    typeof parsed.brand === 'string'  ? parsed.brand.trim()  : '',
     }
 
     return res.status(200).json(result)

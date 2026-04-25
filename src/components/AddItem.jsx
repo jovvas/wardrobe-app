@@ -35,7 +35,7 @@ function blobToBase64(blob) {
   })
 }
 
-const EMPTY = { name: '', category: 'Tops', colour: '' }
+const EMPTY = { name: '', category: 'Tops', colour: '', brand: '' }
 
 export default function AddItem({ onAdded }) {
   const [form,      setForm]      = useState(EMPTY)
@@ -73,6 +73,7 @@ export default function AddItem({ onAdded }) {
           name:     data.name     || f.name,
           category: data.category || f.category,
           colour:   data.colour   || f.colour,
+          brand:    data.brand    || f.brand,
         }))
         setAiNote('Fields pre-filled by AI — check and adjust if needed.')
       }
@@ -120,6 +121,7 @@ export default function AddItem({ onAdded }) {
           name:     form.name.trim(),
           category: form.category,
           colour:   form.colour.trim(),
+          brand:    form.brand.trim() || null,
           photo_url,
         })
       if (insertErr) throw insertErr
@@ -191,6 +193,17 @@ export default function AddItem({ onAdded }) {
           value={form.colour}
           onChange={e => set('colour')(e.target.value)}
           maxLength={40}
+        />
+      </div>
+
+      <div className="form-group">
+        <label>Brand <span className="text-muted">(optional)</span></label>
+        <input
+          type="text"
+          placeholder="e.g. Zara, Mango, H&M"
+          value={form.brand}
+          onChange={e => set('brand')(e.target.value)}
+          maxLength={60}
         />
       </div>
 
