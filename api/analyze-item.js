@@ -2,7 +2,6 @@
 // and returns suggested field values for the Add Item form.
 
 const VALID_CATEGORIES = ['Tops', 'Bottoms', 'Dresses', 'Outerwear', 'Shoes', 'Accessories', 'Bags']
-const VALID_SEASONS    = ['Spring', 'Summer', 'Autumn', 'Winter']
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -25,8 +24,7 @@ export default async function handler(req, res) {
     `{\n` +
     `  "name": "concise descriptive name, e.g. Navy linen blazer",\n` +
     `  "category": "one of: Tops | Bottoms | Dresses | Outerwear | Shoes | Accessories | Bags",\n` +
-    `  "colour": "colour description, e.g. Dusty rose",\n` +
-    `  "seasons": ["one or more of: Spring, Summer, Autumn, Winter"]\n` +
+    `  "colour": "colour description, e.g. Dusty rose"\n` +
     `}`
 
   try {
@@ -68,12 +66,9 @@ export default async function handler(req, res) {
 
     // Sanitise — fall back to safe defaults if Claude returns unexpected values
     const result = {
-      name:     typeof parsed.name === 'string'     ? parsed.name.trim()    : '',
+      name:     typeof parsed.name === 'string'   ? parsed.name.trim()   : '',
       category: VALID_CATEGORIES.includes(parsed.category) ? parsed.category : 'Tops',
-      colour:   typeof parsed.colour === 'string'   ? parsed.colour.trim()  : '',
-      seasons:  Array.isArray(parsed.seasons)
-                  ? parsed.seasons.filter(s => VALID_SEASONS.includes(s))
-                  : [],
+      colour:   typeof parsed.colour === 'string' ? parsed.colour.trim() : '',
     }
 
     return res.status(200).json(result)

@@ -119,7 +119,7 @@ export default function WardrobeGrid() {
               )}
               <div className="item-card-body">
                 <div className="item-card-name">{item.name}</div>
-                <div className="item-card-meta">{item.colour} · {Array.isArray(item.seasons) ? item.seasons.join(', ') : item.seasons}</div>
+                <div className="item-card-meta">{item.colour}</div>
               </div>
             </div>
           ))}

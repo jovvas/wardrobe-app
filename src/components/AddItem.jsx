@@ -2,7 +2,6 @@ import { useState, useRef } from 'react'
 import { supabase } from '../supabaseClient.js'
 
 const CATEGORIES = ['Tops', 'Bottoms', 'Dresses', 'Outerwear', 'Shoes', 'Accessories', 'Bags']
-const SEASONS    = ['Spring', 'Summer', 'Autumn', 'Winter']
 
 const EMOJI = {
   Tops: '👕', Bottoms: '👖', Dresses: '👗', Outerwear: '🧥',
@@ -36,27 +35,18 @@ function blobToBase64(blob) {
   })
 }
 
-const EMPTY = { name: '', category: 'Tops', colour: '', seasons: [] }
+const EMPTY = { name: '', category: 'Tops', colour: '' }
 
 export default function AddItem({ onAdded }) {
   const [form,      setForm]      = useState(EMPTY)
-  const [photo,     setPhoto]     = useState(null)   // { file, previewUrl, blob }
+  const [photo,     setPhoto]     = useState(null)
   const [loading,   setLoading]   = useState(false)
   const [analysing, setAnalysing] = useState(false)
   const [error,     setError]     = useState(null)
-  const [aiNote,    setAiNote]    = useState(null)   // feedback after AI fill
+  const [aiNote,    setAiNote]    = useState(null)
   const fileRef = useRef()
 
   const set = (k) => (v) => setForm(f => ({ ...f, [k]: v }))
-
-  const toggleSeason = (season) => {
-    setForm(f => ({
-      ...f,
-      seasons: f.seasons.includes(season)
-        ? f.seasons.filter(s => s !== season)
-        : [...f.seasons, season],
-    }))
-  }
 
   const onFileChange = async (e) => {
     const file = e.target.files?.[0]
@@ -83,7 +73,6 @@ export default function AddItem({ onAdded }) {
           name:     data.name     || f.name,
           category: data.category || f.category,
           colour:   data.colour   || f.colour,
-          seasons:  data.seasons?.length ? data.seasons : f.seasons,
         }))
         setAiNote('Fields pre-filled by AI — check and adjust if needed.')
       }
@@ -105,9 +94,8 @@ export default function AddItem({ onAdded }) {
     e.preventDefault()
     setError(null)
 
-    if (!form.name.trim())        return setError('Please enter an item name.')
-    if (!form.colour.trim())      return setError('Please enter a colour.')
-    if (form.seasons.length === 0) return setError('Please select at least one season.')
+    if (!form.name.trim())   return setError('Please enter an item name.')
+    if (!form.colour.trim()) return setError('Please enter a colour.')
 
     setLoading(true)
     try {
@@ -132,7 +120,6 @@ export default function AddItem({ onAdded }) {
           name:     form.name.trim(),
           category: form.category,
           colour:   form.colour.trim(),
-          seasons:  form.seasons,
           photo_url,
         })
       if (insertErr) throw insertErr
@@ -205,22 +192,6 @@ export default function AddItem({ onAdded }) {
           onChange={e => set('colour')(e.target.value)}
           maxLength={40}
         />
-      </div>
-
-      <div className="form-group">
-        <label>Season {form.seasons.length > 0 && `(${form.seasons.length} selected)`}</label>
-        <div className="season-chips">
-          {SEASONS.map(s => (
-            <button
-              key={s}
-              type="button"
-              className={`season-chip${form.seasons.includes(s) ? ' active' : ''}`}
-              onClick={() => toggleSeason(s)}
-            >
-              {s}
-            </button>
-          ))}
-        </div>
       </div>
 
       <button
