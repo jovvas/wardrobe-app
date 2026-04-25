@@ -2,8 +2,7 @@ import { useState, useRef } from 'react'
 import { supabase } from '../supabaseClient.js'
 
 const CATEGORIES = ['Tops', 'Bottoms', 'Dresses', 'Outerwear', 'Shoes', 'Accessories', 'Bags']
-const FORMALITY  = ['Casual', 'Smart-Casual', 'Business', 'Formal']
-const SEASONS    = ['All-Season', 'Spring', 'Summer', 'Autumn', 'Winter']
+const SEASONS    = ['Spring', 'Summer', 'Autumn', 'Winter']
 
 const EMOJI = {
   Tops: '👕', Bottoms: '👖', Dresses: '👗', Outerwear: '🧥',
@@ -28,27 +27,77 @@ function resizeImage(file, maxWidth = 800) {
   })
 }
 
-const EMPTY = { name: '', category: 'Tops', colour: '', formality: 'Casual', season: 'All-Season' }
+// Convert a Blob to base64 string (without the data: prefix)
+function blobToBase64(blob) {
+  return new Promise((resolve) => {
+    const reader = new FileReader()
+    reader.onload = () => resolve(reader.result.split(',')[1])
+    reader.readAsDataURL(blob)
+  })
+}
+
+const EMPTY = { name: '', category: 'Tops', colour: '', seasons: [] }
 
 export default function AddItem({ onAdded }) {
-  const [form,    setForm]    = useState(EMPTY)
-  const [photo,   setPhoto]   = useState(null)   // { file, previewUrl }
-  const [loading, setLoading] = useState(false)
-  const [error,   setError]   = useState(null)
+  const [form,      setForm]      = useState(EMPTY)
+  const [photo,     setPhoto]     = useState(null)   // { file, previewUrl, blob }
+  const [loading,   setLoading]   = useState(false)
+  const [analysing, setAnalysing] = useState(false)
+  const [error,     setError]     = useState(null)
+  const [aiNote,    setAiNote]    = useState(null)   // feedback after AI fill
   const fileRef = useRef()
 
-  const set = (k) => (e) => setForm(f => ({ ...f, [k]: e.target.value }))
+  const set = (k) => (v) => setForm(f => ({ ...f, [k]: v }))
 
-  const onFileChange = (e) => {
+  const toggleSeason = (season) => {
+    setForm(f => ({
+      ...f,
+      seasons: f.seasons.includes(season)
+        ? f.seasons.filter(s => s !== season)
+        : [...f.seasons, season],
+    }))
+  }
+
+  const onFileChange = async (e) => {
     const file = e.target.files?.[0]
     if (!file) return
-    const previewUrl = URL.createObjectURL(file)
-    setPhoto({ file, previewUrl })
+
+    const blob       = await resizeImage(file)
+    const previewUrl = URL.createObjectURL(blob)
+    setPhoto({ file, previewUrl, blob })
+    setAiNote(null)
+
+    // Trigger AI analysis
+    setAnalysing(true)
+    try {
+      const base64 = await blobToBase64(blob)
+      const res    = await fetch('/api/analyze-item', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ imageBase64: base64, mediaType: 'image/jpeg' }),
+      })
+      if (res.ok) {
+        const data = await res.json()
+        setForm(f => ({
+          ...f,
+          name:     data.name     || f.name,
+          category: data.category || f.category,
+          colour:   data.colour   || f.colour,
+          seasons:  data.seasons?.length ? data.seasons : f.seasons,
+        }))
+        setAiNote('Fields pre-filled by AI — check and adjust if needed.')
+      }
+    } catch {
+      // Silent fail — user can fill in manually
+    } finally {
+      setAnalysing(false)
+    }
   }
 
   const removePhoto = () => {
     if (photo?.previewUrl) URL.revokeObjectURL(photo.previewUrl)
     setPhoto(null)
+    setAiNote(null)
     if (fileRef.current) fileRef.current.value = ''
   }
 
@@ -56,19 +105,19 @@ export default function AddItem({ onAdded }) {
     e.preventDefault()
     setError(null)
 
-    if (!form.name.trim())   return setError('Please enter an item name.')
-    if (!form.colour.trim()) return setError('Please enter a colour.')
+    if (!form.name.trim())        return setError('Please enter an item name.')
+    if (!form.colour.trim())      return setError('Please enter a colour.')
+    if (form.seasons.length === 0) return setError('Please select at least one season.')
 
     setLoading(true)
     try {
       let photo_url = null
 
-      if (photo?.file) {
-        const blob     = await resizeImage(photo.file)
+      if (photo?.blob) {
         const filename = `${Date.now()}-${Math.random().toString(36).slice(2)}.jpg`
         const { error: uploadErr } = await supabase.storage
           .from('wardrobe-photos')
-          .upload(filename, blob, { contentType: 'image/jpeg' })
+          .upload(filename, photo.blob, { contentType: 'image/jpeg' })
         if (uploadErr) throw uploadErr
 
         const { data: urlData } = supabase.storage
@@ -79,10 +128,15 @@ export default function AddItem({ onAdded }) {
 
       const { error: insertErr } = await supabase
         .from('wardrobe_items')
-        .insert({ ...form, name: form.name.trim(), colour: form.colour.trim(), photo_url })
+        .insert({
+          name:     form.name.trim(),
+          category: form.category,
+          colour:   form.colour.trim(),
+          seasons:  form.seasons,
+          photo_url,
+        })
       if (insertErr) throw insertErr
 
-      // Reset
       removePhoto()
       setForm(EMPTY)
       onAdded?.()
@@ -97,59 +151,12 @@ export default function AddItem({ onAdded }) {
     <form onSubmit={handleSubmit}>
       <h1 className="page-title">Add Item</h1>
 
-      {error && <div className="banner banner-error">{error}</div>}
+      {error  && <div className="banner banner-error">{error}</div>}
+      {aiNote && <div className="banner banner-info">✨ {aiNote}</div>}
 
+      {/* Photo upload — goes first so AI can pre-fill fields below */}
       <div className="form-group">
-        <label>Item name</label>
-        <input
-          type="text"
-          placeholder="e.g. Navy linen blazer"
-          value={form.name}
-          onChange={set('name')}
-          maxLength={80}
-        />
-      </div>
-
-      <div className="form-group">
-        <label>Category</label>
-        <select value={form.category} onChange={set('category')}>
-          {CATEGORIES.map(c => (
-            <option key={c}>{c}</option>
-          ))}
-        </select>
-      </div>
-
-      <div className="form-group">
-        <label>Colour</label>
-        <input
-          type="text"
-          placeholder="e.g. Navy blue"
-          value={form.colour}
-          onChange={set('colour')}
-          maxLength={40}
-        />
-      </div>
-
-      <div className="form-group">
-        <label>Formality</label>
-        <select value={form.formality} onChange={set('formality')}>
-          {FORMALITY.map(f => (
-            <option key={f}>{f}</option>
-          ))}
-        </select>
-      </div>
-
-      <div className="form-group">
-        <label>Season</label>
-        <select value={form.season} onChange={set('season')}>
-          {SEASONS.map(s => (
-            <option key={s}>{s}</option>
-          ))}
-        </select>
-      </div>
-
-      <div className="form-group">
-        <label>Photo (optional)</label>
+        <label>Photo {analysing && <span className="text-muted">(analysing…)</span>}</label>
         {photo ? (
           <div>
             <img src={photo.previewUrl} alt="preview" className="photo-preview" />
@@ -171,8 +178,61 @@ export default function AddItem({ onAdded }) {
         )}
       </div>
 
-      <button className="btn btn-primary mt-8" type="submit" disabled={loading}>
-        {loading ? <><span className="spinner" /> Saving…</> : `${EMOJI[form.category] ?? '➕'} Save item`}
+      <div className="form-group">
+        <label>Item name</label>
+        <input
+          type="text"
+          placeholder="e.g. Navy linen blazer"
+          value={form.name}
+          onChange={e => set('name')(e.target.value)}
+          maxLength={80}
+        />
+      </div>
+
+      <div className="form-group">
+        <label>Category</label>
+        <select value={form.category} onChange={e => set('category')(e.target.value)}>
+          {CATEGORIES.map(c => <option key={c}>{c}</option>)}
+        </select>
+      </div>
+
+      <div className="form-group">
+        <label>Colour</label>
+        <input
+          type="text"
+          placeholder="e.g. Navy blue"
+          value={form.colour}
+          onChange={e => set('colour')(e.target.value)}
+          maxLength={40}
+        />
+      </div>
+
+      <div className="form-group">
+        <label>Season {form.seasons.length > 0 && `(${form.seasons.length} selected)`}</label>
+        <div className="season-chips">
+          {SEASONS.map(s => (
+            <button
+              key={s}
+              type="button"
+              className={`season-chip${form.seasons.includes(s) ? ' active' : ''}`}
+              onClick={() => toggleSeason(s)}
+            >
+              {s}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <button
+        className="btn btn-primary mt-8"
+        type="submit"
+        disabled={loading || analysing}
+      >
+        {loading
+          ? <><span className="spinner" /> Saving…</>
+          : analysing
+          ? <><span className="spinner" style={{ borderTopColor: '#fff' }} /> Analysing photo…</>
+          : `${EMOJI[form.category] ?? '➕'} Save item`}
       </button>
     </form>
   )

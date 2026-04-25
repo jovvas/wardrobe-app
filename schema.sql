@@ -10,8 +10,7 @@ create table if not exists wardrobe_items (
   name        text not null,
   category    text not null,   -- Tops | Bottoms | Dresses | Outerwear | Shoes | Accessories | Bags
   colour      text not null,
-  formality   text not null,   -- Casual | Smart-Casual | Business | Formal
-  season      text not null,   -- Spring | Summer | Autumn | Winter | All-Season
+  seasons     text[] not null, -- any of: Spring | Summer | Autumn | Winter
   photo_url   text,
   created_at  timestamptz default now()
 );

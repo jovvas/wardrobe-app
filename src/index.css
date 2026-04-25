@@ -281,6 +281,33 @@ html, body, #root {
 }
 .photo-upload-label:hover { border-color: var(--accent); color: var(--accent-dk); }
 
+/* ── Season multi-select chips ────────────────────────────── */
+.season-chips {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.season-chip {
+  flex: 1;
+  min-width: 70px;
+  padding: 10px 8px;
+  border-radius: var(--radius-sm);
+  border: 1.5px solid var(--border);
+  background: var(--bg);
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--muted);
+  cursor: pointer;
+  text-align: center;
+  transition: all .15s;
+}
+.season-chip.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+  font-weight: 600;
+}
+
 /* ── Outfit suggester ─────────────────────────────────────── */
 .suggestion-box {
   background: var(--surface);
