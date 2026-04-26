@@ -168,4 +168,56 @@ export default function AddItem({ onAdded }) {
       </div>
 
       <div className="form-group">
-        <label>Item
+        <label>Item name</label>
+        <input
+          type="text"
+          placeholder="e.g. Navy linen blazer"
+          value={form.name}
+          onChange={e => set('name')(e.target.value)}
+          maxLength={80}
+        />
+      </div>
+
+      <div className="form-group">
+        <label>Category</label>
+        <select value={form.category} onChange={e => set('category')(e.target.value)}>
+          {CATEGORIES.map(c => <option key={c}>{c}</option>)}
+        </select>
+      </div>
+
+      <div className="form-group">
+        <label>Colour</label>
+        <input
+          type="text"
+          placeholder="e.g. Navy blue"
+          value={form.colour}
+          onChange={e => set('colour')(e.target.value)}
+          maxLength={40}
+        />
+      </div>
+
+      <div className="form-group">
+        <label>Brand <span className="text-muted">(optional)</span></label>
+        <input
+          type="text"
+          placeholder="e.g. Zara, Mango, H&M"
+          value={form.brand}
+          onChange={e => set('brand')(e.target.value)}
+          maxLength={60}
+        />
+      </div>
+
+      <button
+        className="btn btn-primary mt-8"
+        type="submit"
+        disabled={loading || analysing}
+      >
+        {loading
+          ? <><span className="spinner" /> Saving…</>
+          : analysing
+          ? <><span className="spinner" style={{ borderTopColor: '#fff' }} /> Analysing photo…</>
+          : `${EMOJI[form.category] ?? '➕'} Save item`}
+      </button>
+    </form>
+  )
+}
