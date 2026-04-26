@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react'
+import { useRef, useEffect, useState } from 'react'
 import { supabase } from '../supabaseClient.js'
 
 const QUICK_CONTEXTS = [
@@ -9,12 +9,10 @@ const QUICK_CONTEXTS = [
   'Smart event, 15°C',
 ]
 
-export default function OutfitSuggester() {
-  const [messages,  setMessages]  = useState([])
-  const [input,     setInput]     = useState('')
-  const [loading,   setLoading]   = useState(false)
-  const [error,     setError]     = useState(null)
-  const [wardrobe,  setWardrobe]  = useState(null)
+export default function OutfitSuggester({ messages, setMessages, wardrobe, setWardrobe }) {
+  const [input,   setInput]   = useState('')
+  const [loading, setLoading] = useState(false)
+  const [error,   setError]   = useState(null)
   const bottomRef = useRef(null)
 
   useEffect(() => {

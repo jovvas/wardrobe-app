@@ -1,8 +1,8 @@
 import { useState } from 'react'
-import WardrobeGrid   from './components/WardrobeGrid.jsx'
-import AddItem        from './components/AddItem.jsx'
+import WardrobeGrid    from './components/WardrobeGrid.jsx'
+import AddItem         from './components/AddItem.jsx'
 import OutfitSuggester from './components/OutfitSuggester.jsx'
-import OutfitLog      from './components/OutfitLog.jsx'
+import OutfitLog       from './components/OutfitLog.jsx'
 
 const TABS = [
   { id: 'wardrobe',  label: 'Wardrobe', icon: '👗' },
@@ -12,9 +12,12 @@ const TABS = [
 ]
 
 export default function App() {
-  const [tab, setTab] = useState('wardrobe')
-  // Shared refresh key so AddItem can trigger WardrobeGrid to reload
+  const [tab,        setTab]        = useState('wardrobe')
   const [refreshKey, setRefreshKey] = useState(0)
+
+  // Outfit chat state lifted here so it survives tab switches
+  const [chatMessages, setChatMessages] = useState([])
+  const [chatWardrobe, setChatWardrobe] = useState(null)
 
   const refresh = () => setRefreshKey(k => k + 1)
 
@@ -28,7 +31,14 @@ export default function App() {
       <div className="screen">
         {tab === 'wardrobe' && <WardrobeGrid key={refreshKey} />}
         {tab === 'add'      && <AddItem onAdded={handleItemAdded} />}
-        {tab === 'outfits'  && <OutfitSuggester />}
+        {tab === 'outfits'  && (
+          <OutfitSuggester
+            messages={chatMessages}
+            setMessages={setChatMessages}
+            wardrobe={chatWardrobe}
+            setWardrobe={setChatWardrobe}
+          />
+        )}
         {tab === 'log'      && <OutfitLog key={refreshKey} />}
       </div>
 
