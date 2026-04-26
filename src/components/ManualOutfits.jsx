@@ -98,44 +98,63 @@ export default function ManualOutfits() {
           Tap items to add them to this outfit ({selected.size} selected)
         </p>
 
-        <div className="wardrobe-grid" style={{ marginBottom: 16 }}>
-          {wardrobe.map(item => {
-            const isSelected = selected.has(item.id)
-            return (
-              <div
-                key={item.id}
-                className="item-card"
-                onClick={() => toggleItem(item.id)}
-                style={{
-                  cursor: 'pointer',
-                  outline: isSelected ? '2.5px solid var(--accent)' : 'none',
-                  position: 'relative',
-                }}
-              >
-                {isSelected && (
-                  <div style={{
-                    position: 'absolute', top: 6, right: 6, zIndex: 2,
-                    width: 22, height: 22, borderRadius: '50%',
-                    background: 'var(--accent)', color: '#fff',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    fontSize: 13, fontWeight: 700,
-                  }}>✓</div>
-                )}
-                {item.photo_url ? (
-                  <img src={item.photo_url} alt={item.name} loading="lazy" />
-                ) : (
-                  <div className="item-card-placeholder">
-                    {PLACEHOLDER_EMOJI[item.category] ?? '👔'}
-                  </div>
-                )}
-                <div className="item-card-body">
-                  <div className="item-card-name">{item.name}</div>
-                  <div className="item-card-meta">{item.colour}</div>
-                </div>
+        {/* Group wardrobe items by category */}
+        {(() => {
+          const groups = wardrobe.reduce((acc, item) => {
+            ;(acc[item.category] = acc[item.category] || []).push(item)
+            return acc
+          }, {})
+          return Object.entries(groups).map(([category, items]) => (
+            <div key={category} style={{ marginBottom: 20 }}>
+              <div style={{
+                fontSize: 12, fontWeight: 700, textTransform: 'uppercase',
+                letterSpacing: '0.07em', color: 'var(--text-muted)',
+                marginBottom: 8, paddingBottom: 4,
+                borderBottom: '1px solid var(--border)',
+              }}>
+                {PLACEHOLDER_EMOJI[category] ?? '👔'} {category}
               </div>
-            )
-          })}
-        </div>
+              <div className="wardrobe-grid">
+                {items.map(item => {
+                  const isSelected = selected.has(item.id)
+                  return (
+                    <div
+                      key={item.id}
+                      className="item-card"
+                      onClick={() => toggleItem(item.id)}
+                      style={{
+                        cursor: 'pointer',
+                        outline: isSelected ? '2.5px solid var(--accent)' : 'none',
+                        position: 'relative',
+                      }}
+                    >
+                      {isSelected && (
+                        <div style={{
+                          position: 'absolute', top: 6, right: 6, zIndex: 2,
+                          width: 22, height: 22, borderRadius: '50%',
+                          background: 'var(--accent)', color: '#fff',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          fontSize: 13, fontWeight: 700,
+                        }}>✓</div>
+                      )}
+                      {item.photo_url ? (
+                        <img src={item.photo_url} alt={item.name} loading="lazy" />
+                      ) : (
+                        <div className="item-card-placeholder">
+                          {PLACEHOLDER_EMOJI[item.category] ?? '👔'}
+                        </div>
+                      )}
+                      <div className="item-card-body">
+                        <div className="item-card-name">{item.name}</div>
+                        <div className="item-card-meta">{item.colour}</div>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          ))
+        })()}
 
         <button
           className="btn btn-primary"
