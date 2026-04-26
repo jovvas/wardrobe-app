@@ -4,7 +4,7 @@ import { supabase } from '../supabaseClient.js'
 
 const PLACEHOLDER_EMOJI = {
   'Short Sleeve': '👕', 'Long Sleeve': '👕', Pants: '👖', Shorts: '🩳',
-  Dresses: '👗', Outerwear: '🧥', Shoes: '👟', Accessories: '💍', Bags: '👜',
+  Skirts: '👗', Dresses: '👗', Outerwear: '🧥', Shoes: '👟', Accessories: '💍', Bags: '👜',
 }
 
 export default function AddToOutfitModal({ item, onClose }) {

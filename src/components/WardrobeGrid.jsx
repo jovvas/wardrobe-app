@@ -3,10 +3,10 @@ import { supabase } from '../supabaseClient.js'
 import ItemEditModal from './ItemEditModal.jsx'
 import AddToOutfitModal from './AddToOutfitModal.jsx'
 
-const CATEGORIES = ['All', 'Short Sleeve', 'Long Sleeve', 'Pants', 'Shorts', 'Dresses', 'Outerwear', 'Shoes', 'Accessories', 'Bags']
+const CATEGORIES = ['All', 'Short Sleeve', 'Long Sleeve', 'Pants', 'Shorts', 'Skirts', 'Dresses', 'Outerwear', 'Shoes', 'Accessories', 'Bags']
 
 const PLACEHOLDER_EMOJI = {
-  'Short Sleeve': '👕', 'Long Sleeve': '👕', Pants: '👖', Shorts: '🩳', Dresses: '👗', Outerwear: '🧥',
+  'Short Sleeve': '👕', 'Long Sleeve': '👕', Pants: '👖', Shorts: '🩳', Skirts: '👗', Dresses: '👗', Outerwear: '🧥',
   Shoes: '👟', Accessories: '💍', Bags: '👜',
 }
 

@@ -1,7 +1,7 @@
 // Vercel serverless function — sends a clothing photo to Claude vision
 // and returns suggested field values for the Add Item form.
 
-const VALID_CATEGORIES = ['Short Sleeve', 'Long Sleeve', 'Pants', 'Shorts', 'Dresses', 'Outerwear', 'Shoes', 'Accessories', 'Bags']
+const VALID_CATEGORIES = ['Short Sleeve', 'Long Sleeve', 'Pants', 'Shorts', 'Skirts', 'Dresses', 'Outerwear', 'Shoes', 'Accessories', 'Bags']
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -23,7 +23,7 @@ export default async function handler(req, res) {
     `Respond with ONLY a JSON object — no markdown, no explanation — in exactly this format:\n` +
     `{\n` +
     `  "name": "concise descriptive name, e.g. Navy linen blazer",\n` +
-    `  "category": "one of: Short Sleeve | Long Sleeve | Pants | Shorts | Dresses | Outerwear | Shoes | Accessories | Bags",\n` +
+    `  "category": "one of: Short Sleeve | Long Sleeve | Pants | Shorts | Skirts | Dresses | Outerwear | Shoes | Accessories | Bags",\n` +
     `  "colour": "colour description, e.g. Dusty rose",\n` +
     `  "brand": "brand name if visible or recognisable, otherwise empty string"\n` +
     `}`

@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { createPortal } from 'react-dom'
 import { supabase } from '../supabaseClient.js'
 
-const CATEGORIES = ['Short Sleeve', 'Long Sleeve', 'Pants', 'Shorts', 'Dresses', 'Outerwear', 'Shoes', 'Accessories', 'Bags']
+const CATEGORIES = ['Short Sleeve', 'Long Sleeve', 'Pants', 'Shorts', 'Skirts', 'Dresses', 'Outerwear', 'Shoes', 'Accessories', 'Bags']
 
 function resizeImage(file, maxWidth = 800) {
   return new Promise((resolve) => {

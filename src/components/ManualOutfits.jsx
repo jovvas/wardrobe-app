@@ -1,11 +1,11 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../supabaseClient.js'
 
-const CATEGORIES = ['Short Sleeve', 'Long Sleeve', 'Pants', 'Shorts', 'Dresses', 'Outerwear', 'Shoes', 'Accessories', 'Bags']
+const CATEGORIES = ['Short Sleeve', 'Long Sleeve', 'Pants', 'Shorts', 'Skirts', 'Dresses', 'Outerwear', 'Shoes', 'Accessories', 'Bags']
 
 const PLACEHOLDER_EMOJI = {
   'Short Sleeve': '👕', 'Long Sleeve': '👕', Pants: '👖', Shorts: '🩳',
-  Dresses: '👗', Outerwear: '🧥', Shoes: '👟', Accessories: '💍', Bags: '👜',
+  Skirts: '👗', Dresses: '👗', Outerwear: '🧥', Shoes: '👟', Accessories: '💍', Bags: '👜',
 }
 
 export default function ManualOutfits() {
