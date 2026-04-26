@@ -2,35 +2,42 @@ import { useState, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { supabase } from '../supabaseClient.js'
 
+const PLACEHOLDER_EMOJI = {
+  'Short Sleeve': '👕', 'Long Sleeve': '👕', Pants: '👖', Shorts: '🩳',
+  Dresses: '👗', Outerwear: '🧥', Shoes: '👟', Accessories: '💍', Bags: '👜',
+}
+
 export default function AddToOutfitModal({ item, onClose }) {
-  const [outfits,     setOutfits]     = useState([])
-  const [loading,     setLoading]     = useState(true)
-  const [newName,     setNewName]     = useState('')
-  const [creating,    setCreating]    = useState(false)
-  const [feedback,    setFeedback]    = useState(null)  // { type: 'success'|'error', msg }
+  const [outfits,    setOutfits]    = useState([])
+  const [allItems,   setAllItems]   = useState({})   // id → item, for thumbnails
+  const [loading,    setLoading]    = useState(true)
+  const [newName,    setNewName]    = useState('')
+  const [creating,   setCreating]   = useState(false)
+  const [showCreate, setShowCreate] = useState(false)
+  const [done,       setDone]       = useState(null)  // success message
 
   useEffect(() => {
-    supabase
-      .from('outfits')
-      .select('*')
-      .order('created_at', { ascending: false })
-      .then(({ data }) => { setOutfits(data ?? []); setLoading(false) })
+    Promise.all([
+      supabase.from('outfits').select('*').order('created_at', { ascending: false }),
+      supabase.from('wardrobe_items').select('id, name, category, photo_url'),
+    ]).then(([oRes, wRes]) => {
+      setOutfits(oRes.data ?? [])
+      const map = {}
+      ;(wRes.data ?? []).forEach(i => { map[i.id] = i })
+      setAllItems(map)
+      setLoading(false)
+    })
   }, [])
 
   const addToExisting = async (outfit) => {
-    if ((outfit.item_ids ?? []).includes(item.id)) {
-      setFeedback({ type: 'error', msg: `"${item.name}" is already in "${outfit.name}".` })
-      return
-    }
+    if ((outfit.item_ids ?? []).includes(item.id)) return
     const { error } = await supabase
       .from('outfits')
       .update({ item_ids: [...(outfit.item_ids ?? []), item.id] })
       .eq('id', outfit.id)
-    if (error) {
-      setFeedback({ type: 'error', msg: error.message })
-    } else {
-      setFeedback({ type: 'success', msg: `Added to "${outfit.name}"!` })
-      setTimeout(onClose, 1200)
+    if (!error) {
+      setDone(`Added to "${outfit.name}"`)
+      setTimeout(onClose, 1400)
     }
   }
 
@@ -40,101 +47,180 @@ export default function AddToOutfitModal({ item, onClose }) {
     const { error } = await supabase
       .from('outfits')
       .insert({ name: newName.trim(), item_ids: [item.id] })
-    if (error) {
-      setFeedback({ type: 'error', msg: error.message })
-    } else {
-      setFeedback({ type: 'success', msg: `Outfit "${newName.trim()}" created!` })
-      setTimeout(onClose, 1200)
+    if (!error) {
+      setDone(`"${newName.trim()}" created`)
+      setTimeout(onClose, 1400)
     }
     setCreating(false)
   }
 
-  return createPortal(
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-sheet" onClick={e => e.stopPropagation()}>
-        <div className="modal-handle" />
-        <div className="modal-header">
-          <h2 className="modal-title">Add to Outfit</h2>
-          <button className="modal-close" onClick={onClose}>✕</button>
-        </div>
-        <div className="modal-body">
-          <p className="text-muted" style={{ fontSize: 13, marginBottom: 14 }}>
-            Adding: <strong>{item.name}</strong>
-          </p>
+  const modal = (
+    <div
+      style={{
+        position: 'fixed', inset: 0, zIndex: 200,
+        background: 'rgba(0,0,0,.5)',
+        display: 'flex', alignItems: 'flex-end',
+      }}
+      onClick={onClose}
+    >
+      <div
+        style={{
+          width: '100%', maxWidth: 480, margin: '0 auto',
+          background: 'var(--bg, #fdf8f4)',
+          borderRadius: '20px 20px 0 0',
+          maxHeight: '80dvh',
+          display: 'flex', flexDirection: 'column',
+          paddingBottom: 'env(safe-area-inset-bottom)',
+        }}
+        onClick={e => e.stopPropagation()}
+      >
+        {/* Handle */}
+        <div style={{ width: 36, height: 4, borderRadius: 99, background: 'var(--border)', margin: '12px auto 0', flexShrink: 0 }} />
 
-          {feedback && (
-            <div className={`banner banner-${feedback.type === 'success' ? 'info' : 'error'}`} style={{ marginBottom: 12 }}>
-              {feedback.type === 'success' ? '✅ ' : ''}{feedback.msg}
+        {/* Item preview header */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '14px 16px 12px', flexShrink: 0, borderBottom: '1px solid var(--border)' }}>
+          {item.photo_url ? (
+            <img src={item.photo_url} alt={item.name} style={{ width: 52, height: 52, objectFit: 'cover', borderRadius: 10, flexShrink: 0 }} />
+          ) : (
+            <div style={{ width: 52, height: 52, borderRadius: 10, background: 'var(--surface)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 24, flexShrink: 0 }}>
+              {PLACEHOLDER_EMOJI[item.category] ?? '👔'}
             </div>
           )}
-
-          {/* Existing outfits */}
-          {loading && <p className="text-muted">Loading outfits…</p>}
-
-          {!loading && outfits.length > 0 && (
-            <div style={{ marginBottom: 20 }}>
-              <p style={{ fontSize: 13, fontWeight: 700, marginBottom: 8 }}>Add to existing outfit</p>
-              {outfits.map(outfit => {
-                const alreadyIn = (outfit.item_ids ?? []).includes(item.id)
-                return (
-                  <button
-                    key={outfit.id}
-                    onClick={() => addToExisting(outfit)}
-                    disabled={alreadyIn}
-                    style={{
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'center',
-                      width: '100%',
-                      padding: '10px 14px',
-                      marginBottom: 8,
-                      borderRadius: 10,
-                      border: '1.5px solid var(--border)',
-                      background: 'var(--surface)',
-                      cursor: alreadyIn ? 'default' : 'pointer',
-                      opacity: alreadyIn ? 0.5 : 1,
-                      fontSize: 14,
-                      fontWeight: 500,
-                    }}
-                  >
-                    <span>{outfit.name}</span>
-                    <span style={{ fontSize: 12, color: 'var(--muted)' }}>
-                      {alreadyIn ? '✓ added' : `${(outfit.item_ids ?? []).length} items`}
-                    </span>
-                  </button>
-                )
-              })}
-            </div>
-          )}
-
-          {!loading && outfits.length === 0 && (
-            <p className="text-muted" style={{ marginBottom: 16, fontSize: 13 }}>No outfits yet — create one below.</p>
-          )}
-
-          {/* Create new */}
-          <p style={{ fontSize: 13, fontWeight: 700, marginBottom: 8 }}>Create new outfit</p>
-          <div style={{ display: 'flex', gap: 8 }}>
-            <input
-              type="text"
-              placeholder="e.g. Summer brunch look"
-              value={newName}
-              onChange={e => setNewName(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && createNew()}
-              maxLength={60}
-              style={{ flex: 1 }}
-            />
-            <button
-              className="btn btn-primary"
-              style={{ width: 'auto', padding: '0 16px', flexShrink: 0 }}
-              onClick={createNew}
-              disabled={creating || !newName.trim()}
-            >
-              {creating ? <span className="spinner" style={{ borderTopColor: '#fff' }} /> : 'Create'}
-            </button>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontWeight: 700, fontSize: 15, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.name}</div>
+            <div style={{ fontSize: 13, color: 'var(--muted)', marginTop: 2 }}>Add to outfit</div>
           </div>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', fontSize: 20, color: 'var(--muted)', cursor: 'pointer', padding: '4px 6px', flexShrink: 0 }}>✕</button>
         </div>
+
+        {/* Success state */}
+        {done && (
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 32, gap: 12 }}>
+            <div style={{ fontSize: 48 }}>✅</div>
+            <div style={{ fontWeight: 600, fontSize: 16, textAlign: 'center' }}>{done}</div>
+          </div>
+        )}
+
+        {/* Content */}
+        {!done && (
+          <div style={{ overflowY: 'auto', flex: 1, padding: '12px 16px 20px', WebkitOverflowScrolling: 'touch' }}>
+
+            {loading && <p className="text-muted" style={{ textAlign: 'center', padding: 24 }}>Loading…</p>}
+
+            {/* Existing outfits */}
+            {!loading && outfits.length > 0 && (
+              <div style={{ marginBottom: 16 }}>
+                <p style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--muted)', marginBottom: 10 }}>
+                  Your outfits
+                </p>
+                {outfits.map(outfit => {
+                  const alreadyIn = (outfit.item_ids ?? []).includes(item.id)
+                  const previewItems = (outfit.item_ids ?? []).slice(0, 4).map(id => allItems[id]).filter(Boolean)
+                  return (
+                    <button
+                      key={outfit.id}
+                      onClick={() => !alreadyIn && addToExisting(outfit)}
+                      disabled={alreadyIn}
+                      style={{
+                        width: '100%', display: 'flex', alignItems: 'center', gap: 12,
+                        padding: '10px 12px', marginBottom: 8,
+                        borderRadius: 14, border: '1.5px solid var(--border)',
+                        background: alreadyIn ? 'var(--surface)' : 'var(--bg, #fdf8f4)',
+                        cursor: alreadyIn ? 'default' : 'pointer',
+                        opacity: alreadyIn ? 0.55 : 1,
+                        textAlign: 'left',
+                      }}
+                    >
+                      {/* Thumbnail stack */}
+                      <div style={{ display: 'flex', flexShrink: 0 }}>
+                        {previewItems.length > 0 ? previewItems.map((pi, idx) => (
+                          <div key={pi.id} style={{ marginLeft: idx > 0 ? -10 : 0, zIndex: previewItems.length - idx }}>
+                            {pi.photo_url ? (
+                              <img src={pi.photo_url} alt={pi.name} style={{ width: 36, height: 36, objectFit: 'cover', borderRadius: 8, border: '2px solid var(--bg, #fdf8f4)' }} />
+                            ) : (
+                              <div style={{ width: 36, height: 36, borderRadius: 8, background: 'var(--surface)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, border: '2px solid var(--bg, #fdf8f4)' }}>
+                                {PLACEHOLDER_EMOJI[pi.category] ?? '👔'}
+                              </div>
+                            )}
+                          </div>
+                        )) : (
+                          <div style={{ width: 36, height: 36, borderRadius: 8, background: 'var(--surface)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18 }}>👗</div>
+                        )}
+                      </div>
+
+                      {/* Name + count */}
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontWeight: 600, fontSize: 14, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{outfit.name}</div>
+                        <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 2 }}>
+                          {(outfit.item_ids ?? []).length} item{(outfit.item_ids ?? []).length !== 1 ? 's' : ''}
+                        </div>
+                      </div>
+
+                      {/* Status */}
+                      <div style={{ flexShrink: 0, fontSize: 13, color: alreadyIn ? 'var(--muted)' : 'var(--accent)', fontWeight: 600 }}>
+                        {alreadyIn ? '✓ added' : '+ Add'}
+                      </div>
+                    </button>
+                  )
+                })}
+              </div>
+            )}
+
+            {!loading && outfits.length === 0 && !showCreate && (
+              <p className="text-muted" style={{ textAlign: 'center', padding: '16px 0', fontSize: 14 }}>No outfits yet — create your first one below.</p>
+            )}
+
+            {/* Create new outfit */}
+            {!showCreate ? (
+              <button
+                onClick={() => setShowCreate(true)}
+                style={{
+                  width: '100%', padding: '13px 0',
+                  borderRadius: 14, border: '1.5px dashed var(--border)',
+                  background: 'none', cursor: 'pointer',
+                  fontSize: 14, fontWeight: 600, color: 'var(--accent)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                }}
+              >
+                + Create new outfit
+              </button>
+            ) : (
+              <div style={{ background: 'var(--surface)', borderRadius: 14, padding: '14px 14px', border: '1.5px solid var(--border)' }}>
+                <p style={{ fontSize: 13, fontWeight: 700, marginBottom: 10 }}>New outfit name</p>
+                <input
+                  type="text"
+                  placeholder="e.g. Summer brunch look"
+                  value={newName}
+                  onChange={e => setNewName(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && createNew()}
+                  maxLength={60}
+                  autoFocus
+                  style={{ marginBottom: 10 }}
+                />
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button
+                    className="btn btn-ghost"
+                    style={{ flex: 1 }}
+                    onClick={() => { setShowCreate(false); setNewName('') }}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    className="btn btn-primary"
+                    style={{ flex: 1 }}
+                    onClick={createNew}
+                    disabled={creating || !newName.trim()}
+                  >
+                    {creating ? <span className="spinner" style={{ borderTopColor: '#fff' }} /> : 'Create & add'}
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
       </div>
-    </div>,
-    document.body
+    </div>
   )
+
+  return createPortal(modal, document.body)
 }
