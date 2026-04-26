@@ -15,6 +15,7 @@ export default function AddToOutfitModal({ item, onClose }) {
   const [creating,   setCreating]   = useState(false)
   const [showCreate, setShowCreate] = useState(false)
   const [done,       setDone]       = useState(null)  // success message
+  const [saveError,  setSaveError]  = useState(null)  // error message
 
   useEffect(() => {
     Promise.all([
@@ -31,11 +32,14 @@ export default function AddToOutfitModal({ item, onClose }) {
 
   const addToExisting = async (outfit) => {
     if ((outfit.item_ids ?? []).includes(item.id)) return
+    setSaveError(null)
     const { error } = await supabase
       .from('outfits')
       .update({ item_ids: [...(outfit.item_ids ?? []), item.id] })
       .eq('id', outfit.id)
-    if (!error) {
+    if (error) {
+      setSaveError(error.message)
+    } else {
       setDone(`Added to "${outfit.name}"`)
       setTimeout(onClose, 1400)
     }
@@ -44,10 +48,13 @@ export default function AddToOutfitModal({ item, onClose }) {
   const createNew = async () => {
     if (!newName.trim()) return
     setCreating(true)
+    setSaveError(null)
     const { error } = await supabase
       .from('outfits')
       .insert({ name: newName.trim(), item_ids: [item.id] })
-    if (!error) {
+    if (error) {
+      setSaveError(error.message)
+    } else {
       setDone(`"${newName.trim()}" created`)
       setTimeout(onClose, 1400)
     }
@@ -59,23 +66,21 @@ export default function AddToOutfitModal({ item, onClose }) {
       style={{
         position: 'fixed', inset: 0, zIndex: 200,
         background: 'rgba(0,0,0,.5)',
-        display: 'flex', alignItems: 'flex-end',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        padding: '16px',
       }}
       onClick={onClose}
     >
       <div
         style={{
-          width: '100%', maxWidth: 480, margin: '0 auto',
+          width: '100%', maxWidth: 420,
           background: 'var(--bg, #fdf8f4)',
-          borderRadius: '20px 20px 0 0',
-          maxHeight: '80dvh',
+          borderRadius: '20px',
+          maxHeight: '82dvh',
           display: 'flex', flexDirection: 'column',
-          paddingBottom: 'env(safe-area-inset-bottom)',
         }}
         onClick={e => e.stopPropagation()}
       >
-        {/* Handle */}
-        <div style={{ width: 36, height: 4, borderRadius: 99, background: 'var(--border)', margin: '12px auto 0', flexShrink: 0 }} />
 
         {/* Item preview header */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '14px 16px 12px', flexShrink: 0, borderBottom: '1px solid var(--border)' }}>
@@ -104,6 +109,10 @@ export default function AddToOutfitModal({ item, onClose }) {
         {/* Content */}
         {!done && (
           <div style={{ overflowY: 'auto', flex: 1, padding: '12px 16px 20px', WebkitOverflowScrolling: 'touch' }}>
+
+            {saveError && (
+              <div className="banner banner-error" style={{ marginBottom: 12 }}>{saveError}</div>
+            )}
 
             {loading && <p className="text-muted" style={{ textAlign: 'center', padding: 24 }}>Loading…</p>}
 

@@ -57,7 +57,7 @@ export default function ManualOutfits() {
       .select()
       .single()
     if (err) {
-      setError(err.message)
+      setError('Could not save outfit: ' + err.message)
     } else {
       setOutfits(prev => [data, ...prev])
       setSelected(new Set())
