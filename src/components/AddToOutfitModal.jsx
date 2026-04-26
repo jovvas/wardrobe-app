@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import { supabase } from '../supabaseClient.js'
 
 export default function AddToOutfitModal({ item, onClose }) {
@@ -48,7 +49,7 @@ export default function AddToOutfitModal({ item, onClose }) {
     setCreating(false)
   }
 
-  return (
+  return createPortal(
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal-sheet" onClick={e => e.stopPropagation()}>
         <div className="modal-handle" />
@@ -133,6 +134,7 @@ export default function AddToOutfitModal({ item, onClose }) {
           </div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   )
 }

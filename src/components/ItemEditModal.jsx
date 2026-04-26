@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { createPortal } from 'react-dom'
 import { supabase } from '../supabaseClient.js'
 
 const CATEGORIES = ['Short Sleeve', 'Long Sleeve', 'Pants', 'Shorts', 'Dresses', 'Outerwear', 'Shoes', 'Accessories', 'Bags']
@@ -92,7 +93,7 @@ export default function ItemEditModal({ item, onSave, onClose }) {
 
   const currentPhoto = newPhoto?.previewUrl ?? item.photo_url
 
-  return (
+  return createPortal(
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal-sheet" onClick={e => e.stopPropagation()}>
         <div className="modal-handle" />
@@ -155,6 +156,7 @@ export default function ItemEditModal({ item, onSave, onClose }) {
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   )
 }
