@@ -2,10 +2,10 @@ import { useState, useEffect } from 'react'
 import { supabase } from '../supabaseClient.js'
 import ItemEditModal from './ItemEditModal.jsx'
 
-const CATEGORIES = ['All', 'Tops', 'Bottoms', 'Dresses', 'Outerwear', 'Shoes', 'Accessories', 'Bags']
+const CATEGORIES = ['All', 'Short Sleeve', 'Long Sleeve', 'Pants', 'Shorts', 'Dresses', 'Outerwear', 'Shoes', 'Accessories', 'Bags']
 
 const PLACEHOLDER_EMOJI = {
-  Tops: '👕', Bottoms: '👖', Dresses: '👗', Outerwear: '🧥',
+  'Short Sleeve': '👕', 'Long Sleeve': '👕', Pants: '👖', Shorts: '🩳', Dresses: '👗', Outerwear: '🧥',
   Shoes: '👟', Accessories: '💍', Bags: '👜',
 }
 
@@ -129,43 +129,4 @@ export default function WardrobeGrid() {
         </div>
       )}
 
-      {!loading && visible.length > 0 && (
-        <div className="wardrobe-grid">
-          {visible.map(item => (
-            <div key={item.id} className="item-card">
-              <button
-                className="item-card-delete"
-                onClick={() => deleteItem(item)}
-                title="Remove item"
-              >
-                ✕
-              </button>
-              <div onClick={() => setEditing(item)} style={{ cursor: 'pointer' }}>
-                {item.photo_url ? (
-                  <img src={item.photo_url} alt={item.name} loading="lazy" />
-                ) : (
-                  <div className="item-card-placeholder">
-                    {PLACEHOLDER_EMOJI[item.category] ?? '👔'}
-                  </div>
-                )}
-                <div className="item-card-body">
-                  <div className="item-card-name">{item.name}</div>
-                  <div className="item-card-meta">{item.colour}</div>
-                  {item.brand && <div className="item-card-brand">{item.brand}</div>}
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {editing && (
-        <ItemEditModal
-          item={editing}
-          onSave={handleSaved}
-          onClose={() => setEditing(null)}
-        />
-      )}
-    </div>
-  )
-}
+ 

@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { supabase } from '../supabaseClient.js'
 
-const CATEGORIES = ['Tops', 'Bottoms', 'Dresses', 'Outerwear', 'Shoes', 'Accessories', 'Bags']
+const CATEGORIES = ['Short Sleeve', 'Long Sleeve', 'Pants', 'Shorts', 'Dresses', 'Outerwear', 'Shoes', 'Accessories', 'Bags']
 
 function resizeImage(file, maxWidth = 800) {
   return new Promise((resolve) => {
@@ -23,7 +23,7 @@ function resizeImage(file, maxWidth = 800) {
 export default function ItemEditModal({ item, onSave, onClose }) {
   const [form,    setForm]    = useState({
     name:     item.name     ?? '',
-    category: item.category ?? 'Tops',
+    category: item.category ?? 'Short Sleeve',
     colour:   item.colour   ?? '',
     brand:    item.brand    ?? '',
   })
