@@ -1,21 +1,25 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../supabaseClient.js'
 
+const CATEGORIES = ['Short Sleeve', 'Long Sleeve', 'Pants', 'Shorts', 'Dresses', 'Outerwear', 'Shoes', 'Accessories', 'Bags']
+
 const PLACEHOLDER_EMOJI = {
   'Short Sleeve': '👕', 'Long Sleeve': '👕', Pants: '👖', Shorts: '🩳',
   Dresses: '👗', Outerwear: '🧥', Shoes: '👟', Accessories: '💍', Bags: '👜',
 }
 
 export default function ManualOutfits() {
-  const [view,       setView]       = useState('list')   // 'list' | 'builder'
-  const [outfits,    setOutfits]    = useState([])
-  const [wardrobe,   setWardrobe]   = useState([])
-  const [selected,   setSelected]   = useState(new Set())
-  const [outfitName, setOutfitName] = useState('')
-  const [loading,    setLoading]    = useState(true)
-  const [saving,     setSaving]     = useState(false)
-  const [error,      setError]      = useState(null)
-  const [collapsed,  setCollapsed]  = useState(new Set())  // collapsed category names
+  const [view,          setView]          = useState('list')   // 'list' | 'builder'
+  const [editingOutfit, setEditingOutfit] = useState(null)     // outfit being edited, or null for new
+  const [outfits,       setOutfits]       = useState([])
+  const [wardrobe,      setWardrobe]      = useState([])
+  const [selected,      setSelected]      = useState(new Set())
+  const [outfitName,    setOutfitName]    = useState('')
+  const [loading,       setLoading]       = useState(true)
+  const [saving,        setSaving]        = useState(false)
+  const [error,         setError]         = useState(null)
+  // All categories collapsed by default
+  const [collapsed, setCollapsed] = useState(new Set(CATEGORIES))
 
   const toggleCategory = (cat) => {
     setCollapsed(prev => {
@@ -46,23 +50,65 @@ export default function ManualOutfits() {
     })
   }
 
+  const startNew = () => {
+    setEditingOutfit(null)
+    setSelected(new Set())
+    setOutfitName('')
+    setError(null)
+    setCollapsed(new Set(CATEGORIES))  // reset to all collapsed
+    setView('builder')
+  }
+
+  const startEdit = (outfit) => {
+    setEditingOutfit(outfit)
+    setSelected(new Set(outfit.item_ids ?? []))
+    setOutfitName(outfit.name)
+    setError(null)
+    setCollapsed(new Set(CATEGORIES))  // reset to all collapsed
+    setView('builder')
+  }
+
+  const cancelBuilder = () => {
+    setView('list')
+    setEditingOutfit(null)
+    setSelected(new Set())
+    setOutfitName('')
+    setError(null)
+  }
+
   const saveOutfit = async () => {
     if (!outfitName.trim()) return setError('Give your outfit a name.')
     if (selected.size === 0) return setError('Select at least one item.')
     setSaving(true)
     setError(null)
-    const { data, error: err } = await supabase
-      .from('outfits')
-      .insert({ name: outfitName.trim(), item_ids: [...selected] })
-      .select()
-      .single()
-    if (err) {
-      setError('Could not save outfit: ' + err.message)
+
+    if (editingOutfit) {
+      // Update existing outfit
+      const { data, error: err } = await supabase
+        .from('outfits')
+        .update({ name: outfitName.trim(), item_ids: [...selected] })
+        .eq('id', editingOutfit.id)
+        .select()
+        .single()
+      if (err) {
+        setError('Could not save outfit: ' + err.message)
+      } else {
+        setOutfits(prev => prev.map(o => o.id === editingOutfit.id ? data : o))
+        cancelBuilder()
+      }
     } else {
-      setOutfits(prev => [data, ...prev])
-      setSelected(new Set())
-      setOutfitName('')
-      setView('list')
+      // Create new outfit
+      const { data, error: err } = await supabase
+        .from('outfits')
+        .insert({ name: outfitName.trim(), item_ids: [...selected] })
+        .select()
+        .single()
+      if (err) {
+        setError('Could not save outfit: ' + err.message)
+      } else {
+        setOutfits(prev => [data, ...prev])
+        cancelBuilder()
+      }
     }
     setSaving(false)
   }
@@ -83,11 +129,13 @@ export default function ManualOutfits() {
           <button
             className="btn btn-ghost"
             style={{ width: 'auto', padding: '8px 12px' }}
-            onClick={() => { setView('list'); setSelected(new Set()); setOutfitName(''); setError(null) }}
+            onClick={cancelBuilder}
           >
             ← Back
           </button>
-          <h2 style={{ margin: 0, fontSize: 17, fontWeight: 700 }}>New Outfit</h2>
+          <h2 style={{ margin: 0, fontSize: 17, fontWeight: 700 }}>
+            {editingOutfit ? 'Edit Outfit' : 'New Outfit'}
+          </h2>
         </div>
 
         {error && <div className="banner banner-error" style={{ marginBottom: 10 }}>{error}</div>}
@@ -104,7 +152,7 @@ export default function ManualOutfits() {
         </div>
 
         <p className="text-muted" style={{ fontSize: 13, marginBottom: 10 }}>
-          Tap items to add them to this outfit ({selected.size} selected)
+          Tap items to add or remove them ({selected.size} selected)
         </p>
 
         {/* Group wardrobe items by category */}
@@ -115,63 +163,70 @@ export default function ManualOutfits() {
           }, {})
           return Object.entries(groups).map(([category, items]) => {
             const isCollapsed = collapsed.has(category)
+            const selectedInCat = items.filter(i => selected.has(i.id)).length
             return (
-            <div key={category} style={{ marginBottom: 16 }}>
-              <button
-                onClick={() => toggleCategory(category)}
-                style={{
-                  width: '100%', display: 'flex', alignItems: 'center',
-                  justifyContent: 'space-between', background: 'none', border: 'none',
-                  padding: '6px 0', cursor: 'pointer', marginBottom: isCollapsed ? 0 : 8,
-                  borderBottom: '1px solid var(--border)',
-                }}
-              >
-                <span style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', color: 'var(--muted)' }}>
-                  {PLACEHOLDER_EMOJI[category] ?? '👔'} {category}
-                  <span style={{ marginLeft: 6, fontWeight: 400, color: 'var(--muted)' }}>({items.length})</span>
-                </span>
-                <span style={{ fontSize: 12, color: 'var(--muted)' }}>{isCollapsed ? '▶' : '▼'}</span>
-              </button>
-              {!isCollapsed && <div className="wardrobe-grid">
-                {items.map(item => {
-                  const isSelected = selected.has(item.id)
-                  return (
-                    <div
-                      key={item.id}
-                      className="item-card"
-                      onClick={() => toggleItem(item.id)}
-                      style={{
-                        cursor: 'pointer',
-                        outline: isSelected ? '2.5px solid var(--accent)' : 'none',
-                        position: 'relative',
-                      }}
-                    >
-                      {isSelected && (
-                        <div style={{
-                          position: 'absolute', top: 6, right: 6, zIndex: 2,
-                          width: 22, height: 22, borderRadius: '50%',
-                          background: 'var(--accent)', color: '#fff',
-                          display: 'flex', alignItems: 'center', justifyContent: 'center',
-                          fontSize: 13, fontWeight: 700,
-                        }}>✓</div>
-                      )}
-                      {item.photo_url ? (
-                        <img src={item.photo_url} alt={item.name} loading="lazy" />
-                      ) : (
-                        <div className="item-card-placeholder">
-                          {PLACEHOLDER_EMOJI[item.category] ?? '👔'}
+              <div key={category} style={{ marginBottom: 16 }}>
+                <button
+                  onClick={() => toggleCategory(category)}
+                  style={{
+                    width: '100%', display: 'flex', alignItems: 'center',
+                    justifyContent: 'space-between', background: 'none', border: 'none',
+                    padding: '6px 0', cursor: 'pointer', marginBottom: isCollapsed ? 0 : 8,
+                    borderBottom: '1px solid var(--border)',
+                  }}
+                >
+                  <span style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', color: 'var(--muted)' }}>
+                    {PLACEHOLDER_EMOJI[category] ?? '👔'} {category}
+                    <span style={{ marginLeft: 6, fontWeight: 400, color: 'var(--muted)' }}>({items.length})</span>
+                    {selectedInCat > 0 && (
+                      <span style={{ marginLeft: 6, color: 'var(--accent)', fontWeight: 700 }}>· {selectedInCat} selected</span>
+                    )}
+                  </span>
+                  <span style={{ fontSize: 12, color: 'var(--muted)' }}>{isCollapsed ? '▶' : '▼'}</span>
+                </button>
+                {!isCollapsed && (
+                  <div className="wardrobe-grid">
+                    {items.map(item => {
+                      const isSelected = selected.has(item.id)
+                      return (
+                        <div
+                          key={item.id}
+                          className="item-card"
+                          onClick={() => toggleItem(item.id)}
+                          style={{
+                            cursor: 'pointer',
+                            outline: isSelected ? '2.5px solid var(--accent)' : 'none',
+                            position: 'relative',
+                          }}
+                        >
+                          {isSelected && (
+                            <div style={{
+                              position: 'absolute', top: 6, right: 6, zIndex: 2,
+                              width: 22, height: 22, borderRadius: '50%',
+                              background: 'var(--accent)', color: '#fff',
+                              display: 'flex', alignItems: 'center', justifyContent: 'center',
+                              fontSize: 13, fontWeight: 700,
+                            }}>✓</div>
+                          )}
+                          {item.photo_url ? (
+                            <img src={item.photo_url} alt={item.name} loading="lazy" />
+                          ) : (
+                            <div className="item-card-placeholder">
+                              {PLACEHOLDER_EMOJI[item.category] ?? '👔'}
+                            </div>
+                          )}
+                          <div className="item-card-body">
+                            <div className="item-card-name">{item.name}</div>
+                            <div className="item-card-meta">{item.colour}</div>
+                          </div>
                         </div>
-                      )}
-                      <div className="item-card-body">
-                        <div className="item-card-name">{item.name}</div>
-                        <div className="item-card-meta">{item.colour}</div>
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>}
-            </div>
-          )})
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
+            )
+          })
         })()}
 
         <button
@@ -179,7 +234,12 @@ export default function ManualOutfits() {
           onClick={saveOutfit}
           disabled={saving || selected.size === 0 || !outfitName.trim()}
         >
-          {saving ? <><span className="spinner" style={{ borderTopColor: '#fff' }} /> Saving…</> : `💾 Save outfit (${selected.size} items)`}
+          {saving
+            ? <><span className="spinner" style={{ borderTopColor: '#fff' }} /> Saving…</>
+            : editingOutfit
+              ? `💾 Save changes (${selected.size} items)`
+              : `💾 Save outfit (${selected.size} items)`
+          }
         </button>
       </div>
     )
@@ -195,7 +255,7 @@ export default function ManualOutfits() {
         <button
           className="btn btn-primary"
           style={{ width: 'auto', padding: '10px 16px', fontSize: 14 }}
-          onClick={() => setView('builder')}
+          onClick={startNew}
           disabled={wardrobe.length === 0}
         >
           + New outfit
@@ -226,14 +286,27 @@ export default function ManualOutfits() {
           }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 }}>
               <span style={{ fontWeight: 700, fontSize: 15 }}>{outfit.name}</span>
-              <button
-                onClick={() => deleteOutfit(outfit.id)}
-                style={{
-                  background: 'none', border: 'none', cursor: 'pointer',
-                  color: 'var(--text-muted)', fontSize: 16, padding: '0 2px',
-                }}
-                title="Delete outfit"
-              >✕</button>
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                <button
+                  onClick={() => startEdit(outfit)}
+                  style={{
+                    background: 'none', border: '1px solid var(--border)',
+                    borderRadius: 8, cursor: 'pointer',
+                    color: 'var(--accent)', fontSize: 12, fontWeight: 600,
+                    padding: '4px 10px',
+                  }}
+                >
+                  Edit
+                </button>
+                <button
+                  onClick={() => deleteOutfit(outfit.id)}
+                  style={{
+                    background: 'none', border: 'none', cursor: 'pointer',
+                    color: 'var(--muted)', fontSize: 16, padding: '0 2px',
+                  }}
+                  title="Delete outfit"
+                >✕</button>
+              </div>
             </div>
 
             {/* Item thumbnails */}
@@ -255,7 +328,7 @@ export default function ManualOutfits() {
                       {PLACEHOLDER_EMOJI[item.category] ?? '👔'}
                     </div>
                   )}
-                  <div style={{ fontSize: 10, marginTop: 3, color: 'var(--text-muted)', lineHeight: 1.2, wordBreak: 'break-word' }}>
+                  <div style={{ fontSize: 10, marginTop: 3, color: 'var(--muted)', lineHeight: 1.2, wordBreak: 'break-word' }}>
                     {item.name.length > 14 ? item.name.slice(0, 13) + '…' : item.name}
                   </div>
                 </div>
