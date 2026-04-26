@@ -15,6 +15,15 @@ export default function ManualOutfits() {
   const [loading,    setLoading]    = useState(true)
   const [saving,     setSaving]     = useState(false)
   const [error,      setError]      = useState(null)
+  const [collapsed,  setCollapsed]  = useState(new Set())  // collapsed category names
+
+  const toggleCategory = (cat) => {
+    setCollapsed(prev => {
+      const next = new Set(prev)
+      next.has(cat) ? next.delete(cat) : next.add(cat)
+      return next
+    })
+  }
 
   useEffect(() => { fetchAll() }, [])
 
@@ -104,17 +113,26 @@ export default function ManualOutfits() {
             ;(acc[item.category] = acc[item.category] || []).push(item)
             return acc
           }, {})
-          return Object.entries(groups).map(([category, items]) => (
-            <div key={category} style={{ marginBottom: 20 }}>
-              <div style={{
-                fontSize: 12, fontWeight: 700, textTransform: 'uppercase',
-                letterSpacing: '0.07em', color: 'var(--text-muted)',
-                marginBottom: 8, paddingBottom: 4,
-                borderBottom: '1px solid var(--border)',
-              }}>
-                {PLACEHOLDER_EMOJI[category] ?? '👔'} {category}
-              </div>
-              <div className="wardrobe-grid">
+          return Object.entries(groups).map(([category, items]) => {
+            const isCollapsed = collapsed.has(category)
+            return (
+            <div key={category} style={{ marginBottom: 16 }}>
+              <button
+                onClick={() => toggleCategory(category)}
+                style={{
+                  width: '100%', display: 'flex', alignItems: 'center',
+                  justifyContent: 'space-between', background: 'none', border: 'none',
+                  padding: '6px 0', cursor: 'pointer', marginBottom: isCollapsed ? 0 : 8,
+                  borderBottom: '1px solid var(--border)',
+                }}
+              >
+                <span style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', color: 'var(--muted)' }}>
+                  {PLACEHOLDER_EMOJI[category] ?? '👔'} {category}
+                  <span style={{ marginLeft: 6, fontWeight: 400, color: 'var(--muted)' }}>({items.length})</span>
+                </span>
+                <span style={{ fontSize: 12, color: 'var(--muted)' }}>{isCollapsed ? '▶' : '▼'}</span>
+              </button>
+              {!isCollapsed && <div className="wardrobe-grid">
                 {items.map(item => {
                   const isSelected = selected.has(item.id)
                   return (
@@ -151,9 +169,9 @@ export default function ManualOutfits() {
                     </div>
                   )
                 })}
-              </div>
+              </div>}
             </div>
-          ))
+          )})
         })()}
 
         <button

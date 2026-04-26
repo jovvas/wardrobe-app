@@ -255,6 +255,24 @@ html, body, #root {
   line-height: 1;
 }
 
+.item-card-add-outfit {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: rgba(0,0,0,.45);
+  border: none;
+  color: #fff;
+  font-size: 16px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+
 /* ── Empty state ──────────────────────────────────────────── */
 .empty {
   text-align: center;

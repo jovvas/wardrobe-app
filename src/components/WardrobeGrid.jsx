@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../supabaseClient.js'
 import ItemEditModal from './ItemEditModal.jsx'
+import AddToOutfitModal from './AddToOutfitModal.jsx'
 
 const CATEGORIES = ['All', 'Short Sleeve', 'Long Sleeve', 'Pants', 'Shorts', 'Dresses', 'Outerwear', 'Shoes', 'Accessories', 'Bags']
 
@@ -14,6 +15,7 @@ export default function WardrobeGrid() {
   const [filter,     setFilter]     = useState('All')
   const [search,     setSearch]     = useState('')
   const [editing,    setEditing]    = useState(null)   // item being edited
+  const [addingToOutfit, setAddingToOutfit] = useState(null)  // item to add to outfit
   const [loading,    setLoading]    = useState(true)
   const [error,      setError]      = useState(null)
 
@@ -140,6 +142,13 @@ export default function WardrobeGrid() {
               >
                 ✕
               </button>
+              <button
+                className="item-card-add-outfit"
+                onClick={() => setAddingToOutfit(item)}
+                title="Add to outfit"
+              >
+                +
+              </button>
               <div onClick={() => setEditing(item)} style={{ cursor: 'pointer' }}>
                 {item.photo_url ? (
                   <img src={item.photo_url} alt={item.name} loading="lazy" />
@@ -164,6 +173,12 @@ export default function WardrobeGrid() {
           item={editing}
           onSave={handleSaved}
           onClose={() => setEditing(null)}
+        />
+      )}
+      {addingToOutfit && (
+        <AddToOutfitModal
+          item={addingToOutfit}
+          onClose={() => setAddingToOutfit(null)}
         />
       )}
     </div>
