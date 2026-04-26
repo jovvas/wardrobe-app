@@ -229,6 +229,14 @@ html, body, #root {
   color: var(--muted);
   margin-top: 2px;
 }
+.item-card-brand {
+  font-size: 11px;
+  color: var(--accent-dk);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .4px;
+  margin-top: 2px;
+}
 .item-card-delete {
   position: absolute;
   top: 6px;

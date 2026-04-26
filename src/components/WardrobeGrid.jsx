@@ -11,6 +11,7 @@ const PLACEHOLDER_EMOJI = {
 export default function WardrobeGrid() {
   const [items,   setItems]   = useState([])
   const [filter,  setFilter]  = useState('All')
+  const [search,  setSearch]  = useState('')
   const [loading, setLoading] = useState(true)
   const [error,   setError]   = useState(null)
 
@@ -36,9 +37,7 @@ export default function WardrobeGrid() {
   const deleteItem = async (item) => {
     if (!window.confirm(`Remove "${item.name}" from your wardrobe?`)) return
 
-    // Delete photo from storage if it exists
     if (item.photo_url) {
-      // Extract the filename from the public URL
       const parts = item.photo_url.split('/wardrobe-photos/')
       if (parts[1]) {
         await supabase.storage.from('wardrobe-photos').remove([parts[1]])
@@ -56,7 +55,19 @@ export default function WardrobeGrid() {
     }
   }
 
-  const visible = filter === 'All' ? items : items.filter(i => i.category === filter)
+  const q = search.trim().toLowerCase()
+
+  const visible = items
+    .filter(i => filter === 'All' || i.category === filter)
+    .filter(i => {
+      if (!q) return true
+      return (
+        i.name?.toLowerCase().includes(q)   ||
+        i.brand?.toLowerCase().includes(q)  ||
+        i.colour?.toLowerCase().includes(q) ||
+        i.category?.toLowerCase().includes(q)
+      )
+    })
 
   return (
     <div>
@@ -68,6 +79,16 @@ export default function WardrobeGrid() {
       </h1>
 
       {error && <div className="banner banner-error">{error}</div>}
+
+      {/* Search */}
+      <div className="form-group" style={{ marginBottom: 10 }}>
+        <input
+          type="search"
+          placeholder="Search by name, brand, colour…"
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+        />
+      </div>
 
       {/* Category filter chips */}
       <div className="filter-bar">
@@ -92,7 +113,9 @@ export default function WardrobeGrid() {
         <div className="empty">
           <div className="empty-icon">👗</div>
           <p>
-            {filter === 'All'
+            {q
+              ? `No items match "${search}".`
+              : filter === 'All'
               ? 'Your wardrobe is empty.\nTap ➕ Add Item to get started.'
               : `No ${filter.toLowerCase()} added yet.`}
           </p>
@@ -120,6 +143,7 @@ export default function WardrobeGrid() {
               <div className="item-card-body">
                 <div className="item-card-name">{item.name}</div>
                 <div className="item-card-meta">{item.colour}</div>
+                {item.brand && <div className="item-card-brand">{item.brand}</div>}
               </div>
             </div>
           ))}
