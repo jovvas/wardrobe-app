@@ -10,14 +10,13 @@ const QUICK_CONTEXTS = [
 ]
 
 export default function OutfitSuggester() {
-  const [messages,  setMessages]  = useState([])   // { role: 'user'|'assistant', content: string }
+  const [messages,  setMessages]  = useState([])
   const [input,     setInput]     = useState('')
   const [loading,   setLoading]   = useState(false)
   const [error,     setError]     = useState(null)
-  const [wardrobe,  setWardrobe]  = useState(null)  // cached after first send
+  const [wardrobe,  setWardrobe]  = useState(null)
   const bottomRef = useRef(null)
 
-  // Scroll to latest message
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages, loading])
@@ -45,23 +44,19 @@ export default function OutfitSuggester() {
 
     try {
       const wdrobe = await fetchWardrobe()
-
       const res = await fetch('/api/suggest', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ messages: newMessages, wardrobe: wdrobe }),
       })
-
       if (!res.ok) {
         const body = await res.json().catch(() => ({}))
         throw new Error(body.error ?? `Server error ${res.status}`)
       }
-
       const { reply } = await res.json()
       setMessages(prev => [...prev, { role: 'assistant', content: reply }])
     } catch (err) {
       setError(err.message ?? 'Something went wrong. Please try again.')
-      // Remove the user message we optimistically added
       setMessages(messages)
     } finally {
       setLoading(false)
@@ -75,39 +70,30 @@ export default function OutfitSuggester() {
     }
   }
 
-  const reset = () => {
-    setMessages([])
-    setInput('')
-    setError(null)
-  }
-
+  const reset = () => { setMessages([]); setInput(''); setError(null) }
   const isEmpty = messages.length === 0
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+    <div>
+      {/* Header */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
         <h1 className="page-title" style={{ marginBottom: 0 }}>Outfit Ideas</h1>
         {!isEmpty && (
-          <button className="btn btn-ghost" style={{ fontSize: 13 }} onClick={reset}>
+          <button className="btn btn-ghost" style={{ width: 'auto', padding: '8px 14px', fontSize: 13 }} onClick={reset}>
             New chat
           </button>
         )}
       </div>
 
-      {/* Empty state — show prompt + quick chips */}
+      {/* Empty state */}
       {isEmpty && (
-        <div style={{ marginTop: 16 }}>
+        <div>
           <p className="text-muted" style={{ marginBottom: 16, lineHeight: 1.5 }}>
             Describe where you're going and the weather — then keep chatting to fine-tune.
           </p>
           <div className="filter-bar" style={{ marginBottom: 16 }}>
             {QUICK_CONTEXTS.map(q => (
-              <button
-                key={q}
-                className="filter-chip"
-                onClick={() => sendMessage(q)}
-                disabled={loading}
-              >
+              <button key={q} className="filter-chip" onClick={() => sendMessage(q)} disabled={loading}>
                 {q}
               </button>
             ))}
@@ -117,42 +103,43 @@ export default function OutfitSuggester() {
 
       {/* Chat history */}
       {!isEmpty && (
-        <div style={{ flex: 1, overflowY: 'auto', marginTop: 16, marginBottom: 12 }}>
+        <div style={{ marginBottom: 12 }}>
           {messages.map((msg, i) => (
             <div
               key={i}
               style={{
                 display: 'flex',
                 justifyContent: msg.role === 'user' ? 'flex-end' : 'flex-start',
-                marginBottom: 12,
+                marginBottom: 10,
               }}
             >
-              <div
-                style={{
-                  maxWidth: '85%',
-                  padding: '10px 14px',
-                  borderRadius: msg.role === 'user' ? '18px 18px 4px 18px' : '18px 18px 18px 4px',
-                  background: msg.role === 'user' ? 'var(--color-primary)' : 'var(--color-surface)',
-                  color: msg.role === 'user' ? '#fff' : 'var(--color-text)',
-                  fontSize: 14,
-                  lineHeight: 1.55,
-                  whiteSpace: 'pre-wrap',
-                  boxShadow: '0 1px 2px rgba(0,0,0,0.07)',
-                }}
-              >
+              <div style={{
+                maxWidth: '85%',
+                padding: '10px 14px',
+                borderRadius: msg.role === 'user' ? '18px 18px 4px 18px' : '18px 18px 18px 4px',
+                background: msg.role === 'user' ? 'var(--accent)' : 'var(--surface)',
+                color: msg.role === 'user' ? '#fff' : 'var(--text)',
+                fontSize: 14,
+                lineHeight: 1.55,
+                whiteSpace: 'pre-wrap',
+                boxShadow: '0 1px 2px rgba(0,0,0,0.07)',
+              }}>
                 {msg.content}
               </div>
             </div>
           ))}
           {loading && (
-            <div style={{ display: 'flex', justifyContent: 'flex-start', marginBottom: 12 }}>
+            <div style={{ display: 'flex', justifyContent: 'flex-start', marginBottom: 10 }}>
               <div style={{
                 padding: '10px 14px',
                 borderRadius: '18px 18px 18px 4px',
-                background: 'var(--color-surface)',
+                background: 'var(--surface)',
                 fontSize: 14,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6,
               }}>
-                <span className="spinner" style={{ width: 14, height: 14, marginRight: 6 }} />
+                <span className="spinner" style={{ width: 14, height: 14 }} />
                 Thinking…
               </div>
             </div>
@@ -163,24 +150,50 @@ export default function OutfitSuggester() {
 
       {error && <div className="banner banner-error" style={{ marginBottom: 8 }}>{error}</div>}
 
-      {/* Input bar */}
-      <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end', paddingTop: 4 }}>
+      {/* Input row */}
+      <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end' }}>
         <textarea
           placeholder={isEmpty ? 'e.g. Work presentation, 22°C, need to look polished' : 'Ask a follow-up…'}
           value={input}
           onChange={e => setInput(e.target.value)}
           onKeyDown={handleKeyDown}
           rows={2}
-          style={{ flex: 1, resize: 'none' }}
           disabled={loading}
+          style={{
+            flex: 1,
+            resize: 'none',
+            padding: '10px 12px',
+            fontSize: 15,
+            borderRadius: 12,
+            border: '1.5px solid var(--border)',
+            background: 'var(--surface)',
+            color: 'var(--text)',
+            outline: 'none',
+            fontFamily: 'inherit',
+            minWidth: 0,
+          }}
         />
         <button
-          className="btn btn-primary"
           onClick={() => sendMessage()}
           disabled={loading || !input.trim()}
-          style={{ flexShrink: 0, alignSelf: 'flex-end' }}
+          style={{
+            width: 44,
+            height: 44,
+            flexShrink: 0,
+            borderRadius: '50%',
+            border: 'none',
+            background: 'var(--accent)',
+            color: '#fff',
+            fontSize: 18,
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            opacity: (loading || !input.trim()) ? 0.4 : 1,
+            transition: 'opacity .15s',
+          }}
         >
-          {loading ? <span className="spinner" style={{ borderTopColor: '#fff' }} /> : '↑'}
+          {loading ? <span className="spinner" style={{ width: 16, height: 16, borderTopColor: '#fff' }} /> : '↑'}
         </button>
       </div>
       {isEmpty && (
