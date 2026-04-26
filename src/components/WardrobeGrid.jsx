@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../supabaseClient.js'
+import ItemEditModal from './ItemEditModal.jsx'
 
 const CATEGORIES = ['All', 'Tops', 'Bottoms', 'Dresses', 'Outerwear', 'Shoes', 'Accessories', 'Bags']
 
@@ -9,11 +10,12 @@ const PLACEHOLDER_EMOJI = {
 }
 
 export default function WardrobeGrid() {
-  const [items,   setItems]   = useState([])
-  const [filter,  setFilter]  = useState('All')
-  const [search,  setSearch]  = useState('')
-  const [loading, setLoading] = useState(true)
-  const [error,   setError]   = useState(null)
+  const [items,      setItems]      = useState([])
+  const [filter,     setFilter]     = useState('All')
+  const [search,     setSearch]     = useState('')
+  const [editing,    setEditing]    = useState(null)   // item being edited
+  const [loading,    setLoading]    = useState(true)
+  const [error,      setError]      = useState(null)
 
   useEffect(() => {
     fetchItems()
@@ -68,6 +70,11 @@ export default function WardrobeGrid() {
         i.category?.toLowerCase().includes(q)
       )
     })
+
+  const handleSaved = (updated) => {
+    setItems(prev => prev.map(i => i.id === updated.id ? updated : i))
+    setEditing(null)
+  }
 
   return (
     <div>
@@ -133,21 +140,31 @@ export default function WardrobeGrid() {
               >
                 ✕
               </button>
-              {item.photo_url ? (
-                <img src={item.photo_url} alt={item.name} loading="lazy" />
-              ) : (
-                <div className="item-card-placeholder">
-                  {PLACEHOLDER_EMOJI[item.category] ?? '👔'}
+              <div onClick={() => setEditing(item)} style={{ cursor: 'pointer' }}>
+                {item.photo_url ? (
+                  <img src={item.photo_url} alt={item.name} loading="lazy" />
+                ) : (
+                  <div className="item-card-placeholder">
+                    {PLACEHOLDER_EMOJI[item.category] ?? '👔'}
+                  </div>
+                )}
+                <div className="item-card-body">
+                  <div className="item-card-name">{item.name}</div>
+                  <div className="item-card-meta">{item.colour}</div>
+                  {item.brand && <div className="item-card-brand">{item.brand}</div>}
                 </div>
-              )}
-              <div className="item-card-body">
-                <div className="item-card-name">{item.name}</div>
-                <div className="item-card-meta">{item.colour}</div>
-                {item.brand && <div className="item-card-brand">{item.brand}</div>}
               </div>
             </div>
           ))}
         </div>
+      )}
+
+      {editing && (
+        <ItemEditModal
+          item={editing}
+          onSave={handleSaved}
+          onClose={() => setEditing(null)}
+        />
       )}
     </div>
   )
