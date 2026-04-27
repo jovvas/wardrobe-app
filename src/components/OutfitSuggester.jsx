@@ -235,7 +235,7 @@ export default function OutfitSuggester({ messages, setMessages, wardrobe, setWa
               <p className="text-muted" style={{ marginBottom: 16, lineHeight: 1.5 }}>
                 {locationData?.city
                   ? `I know you're in ${locationData.city} — ask me anything and I'll factor in the forecast.`
-                  : 'Describe where you're going and I'll suggest an outfit from your wardrobe.'}
+                  : `Describe where you're going and I'll suggest an outfit from your wardrobe.`}
               </p>
               <div className="filter-bar" style={{ marginBottom: 16 }}>
                 {QUICK_CONTEXTS.map(q => (
