@@ -21,10 +21,10 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: 'Anthropic API key not configured on server' })
   }
 
-  // Build wardrobe list for the system prompt
+  // Build wardrobe list for the system prompt — include IDs so Claude can tag outfit items
   const wardrobeList = wardrobe
     .map(item =>
-      `• ${item.name}${item.brand ? ` (${item.brand})` : ''} — ${item.category}, ${item.colour}`
+      `• [${item.id}] ${item.name}${item.brand ? ` (${item.brand})` : ''} — ${item.category}, ${item.colour}`
     )
     .join('\n')
 
@@ -32,7 +32,12 @@ export default async function handler(req, res) {
     `You are a personal stylist assistant. ` +
     `Only suggest outfits using items from the user's wardrobe listed below. ` +
     `Be concise and practical. If the wardrobe is missing something obvious, briefly note it.\n\n` +
-    `The user's wardrobe:\n${wardrobeList}`
+    `The user's wardrobe (format: [id] name — category, colour):\n${wardrobeList}\n\n` +
+    `IMPORTANT: When you recommend a specific outfit combination with concrete items, ` +
+    `append ONE line at the very end of your response in exactly this format (no spaces, no markdown fences):\n` +
+    `OUTFIT_IDS:["id1","id2","id3"]\n` +
+    `List only the IDs of the items you are including in the outfit. ` +
+    `Omit this line entirely when giving general advice, asking questions, or not recommending a specific combination.`
 
   try {
     const anthropicRes = await fetch('https://api.anthropic.com/v1/messages', {
@@ -57,8 +62,17 @@ export default async function handler(req, res) {
     }
 
     const data = await anthropicRes.json()
-    const reply = data?.content?.[0]?.text ?? ''
-    return res.status(200).json({ reply })
+    const rawReply = data?.content?.[0]?.text ?? ''
+
+    // Extract OUTFIT_IDS from the end of the reply (if present)
+    const idMatch = rawReply.match(/\nOUTFIT_IDS:(\[.*?\])\s*$/)
+    let item_ids = null
+    if (idMatch) {
+      try { item_ids = JSON.parse(idMatch[1]) } catch { /* ignore malformed */ }
+    }
+    const reply = rawReply.replace(/\nOUTFIT_IDS:\[.*?\]\s*$/, '').trim()
+
+    return res.status(200).json({ reply, item_ids })
   } catch (err) {
     console.error('suggest.js error:', err)
     return res.status(500).json({ error: err.message })
