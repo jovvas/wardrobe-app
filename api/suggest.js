@@ -7,7 +7,7 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' })
   }
 
-  const { messages, wardrobe } = req.body ?? {}
+  const { messages, wardrobe, weatherContext } = req.body ?? {}
 
   if (!Array.isArray(messages) || messages.length === 0) {
     return res.status(400).json({ error: 'messages is required' })
@@ -21,18 +21,23 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: 'Anthropic API key not configured on server' })
   }
 
-  // Build wardrobe list for the system prompt — include IDs so Claude can tag outfit items
+  // Build wardrobe list — include IDs so Claude can tag outfit items
   const wardrobeList = wardrobe
     .map(item =>
       `• [${item.id}] ${item.name}${item.brand ? ` (${item.brand})` : ''} — ${item.category}, ${item.colour}`
     )
     .join('\n')
 
+  const weatherSection = weatherContext
+    ? `\n\n${weatherContext}\n\nUse the forecast above when the user mentions specific days (e.g. "tomorrow", "next Friday") or weather conditions. Factor in temperature and precipitation when recommending layers, fabrics, and outfit choices.`
+    : ''
+
   const systemPrompt =
     `You are a personal stylist assistant. ` +
     `Only suggest outfits using items from the user's wardrobe listed below. ` +
-    `Be concise and practical. If the wardrobe is missing something obvious, briefly note it.\n\n` +
-    `The user's wardrobe (format: [id] name — category, colour):\n${wardrobeList}\n\n` +
+    `Be concise and practical. If the wardrobe is missing something obvious, briefly note it.` +
+    weatherSection +
+    `\n\nThe user's wardrobe (format: [id] name — category, colour):\n${wardrobeList}\n\n` +
     `IMPORTANT: When you recommend a specific outfit combination with concrete items, ` +
     `append ONE line at the very end of your response in exactly this format (no spaces, no markdown fences):\n` +
     `OUTFIT_IDS:["id1","id2","id3"]\n` +

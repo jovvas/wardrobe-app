@@ -1,13 +1,20 @@
 import { useRef, useEffect, useState } from 'react'
 import { supabase } from '../supabaseClient.js'
 import ManualOutfits from './ManualOutfits.jsx'
+import {
+  getLocationAndWeather,
+  geocodeCity,
+  fetchForecast,
+  formatForecastForAI,
+  extractCityFromText,
+} from '../utils/weather.js'
 
 const QUICK_CONTEXTS = [
-  'Casual weekend, 25°C',
-  'Work meeting, 20°C',
-  'Dinner out, 18°C',
-  'Beach day, 30°C',
-  'Smart event, 15°C',
+  'Casual day out, what should I wear?',
+  'Work meeting tomorrow',
+  'Dinner out tonight',
+  'Beach day',
+  'Smart casual event',
 ]
 
 export default function OutfitSuggester({ messages, setMessages, wardrobe, setWardrobe }) {
@@ -15,11 +22,34 @@ export default function OutfitSuggester({ messages, setMessages, wardrobe, setWa
   const [input,       setInput]       = useState('')
   const [loading,     setLoading]     = useState(false)
   const [error,       setError]       = useState(null)
+  // Location & weather
+  const [locationData, setLocationData] = useState(null)   // { city, country, lat, lon, context }
+  const [locLoading,   setLocLoading]   = useState(false)
+  const [locError,     setLocError]     = useState(null)
   // Save-to-outfits state
   const [saveTarget,  setSaveTarget]  = useState(null)   // { msgIndex, name } or null
   const [savingMsg,   setSavingMsg]   = useState(false)
-  const [savedMsgs,   setSavedMsgs]   = useState(new Set())  // set of saved msgIndex values
+  const [savedMsgs,   setSavedMsgs]   = useState(new Set())
   const bottomRef = useRef(null)
+
+  // Load location + weather when component mounts
+  useEffect(() => {
+    loadLocation()
+  }, [])
+
+  const loadLocation = async () => {
+    setLocLoading(true)
+    setLocError(null)
+    try {
+      const data = await getLocationAndWeather()
+      setLocationData(data)
+    } catch (err) {
+      // Permission denied or not supported — not a fatal error, just no weather
+      setLocError(err.code === 1 ? 'Location permission denied' : 'Could not get location')
+    } finally {
+      setLocLoading(false)
+    }
+  }
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -36,6 +66,35 @@ export default function OutfitSuggester({ messages, setMessages, wardrobe, setWa
     return data
   }
 
+  // Build weather context for this message:
+  // If user mentions a city different from their location, fetch that city's weather too
+  const buildWeatherContext = async (userText) => {
+    const mentionedCity = extractCityFromText(userText)
+    const contexts = []
+
+    // Always include user's local weather if available
+    if (locationData?.context) {
+      contexts.push(locationData.context)
+    }
+
+    // If a different city was mentioned, fetch its weather
+    if (mentionedCity) {
+      const homeCity = locationData?.city?.toLowerCase() ?? ''
+      if (!homeCity || !mentionedCity.toLowerCase().includes(homeCity)) {
+        try {
+          const geo = await geocodeCity(mentionedCity)
+          if (geo) {
+            const forecast = await fetchForecast(geo.lat, geo.lon)
+            const ctx = formatForecastForAI(geo.city, geo.country, forecast)
+            if (ctx) contexts.push(ctx)
+          }
+        } catch { /* silently skip if geocoding fails */ }
+      }
+    }
+
+    return contexts.length > 0 ? contexts.join('\n\n') : null
+  }
+
   const sendMessage = async (text) => {
     const userText = (text ?? input).trim()
     if (!userText) return
@@ -45,11 +104,14 @@ export default function OutfitSuggester({ messages, setMessages, wardrobe, setWa
     setMessages(newMessages)
     setLoading(true)
     try {
-      const wdrobe = await fetchWardrobe()
+      const [wdrobe, weatherContext] = await Promise.all([
+        fetchWardrobe(),
+        buildWeatherContext(userText),
+      ])
       const res = await fetch('/api/suggest', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messages: newMessages, wardrobe: wdrobe }),
+        body: JSON.stringify({ messages: newMessages, wardrobe: wdrobe, weatherContext }),
       })
       if (!res.ok) {
         const body = await res.json().catch(() => ({}))
@@ -95,6 +157,41 @@ export default function OutfitSuggester({ messages, setMessages, wardrobe, setWa
 
   const isEmpty = messages.length === 0
 
+  // ── Location pill ────────────────────────────────────────────
+  const LocationPill = () => {
+    if (locLoading) return (
+      <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, color: 'var(--muted)', marginBottom: 12 }}>
+        <span className="spinner" style={{ width: 11, height: 11, border: '1.5px solid var(--border)', borderTopColor: 'var(--muted)' }} />
+        Detecting location…
+      </div>
+    )
+    if (locationData?.city) return (
+      <div style={{
+        display: 'inline-flex', alignItems: 'center', gap: 5,
+        fontSize: 12, color: 'var(--accent-dk)', fontWeight: 600,
+        background: '#fdf8f0', border: '1px solid #e8d8b8',
+        borderRadius: 99, padding: '4px 10px', marginBottom: 12,
+      }}>
+        📍 {locationData.city}{locationData.country ? `, ${locationData.country}` : ''} · weather loaded
+      </div>
+    )
+    if (locError) return (
+      <button
+        onClick={loadLocation}
+        style={{
+          display: 'inline-flex', alignItems: 'center', gap: 5,
+          fontSize: 12, color: 'var(--muted)', fontWeight: 500,
+          background: 'none', border: '1px dashed var(--border)',
+          borderRadius: 99, padding: '4px 10px', marginBottom: 12,
+          cursor: 'pointer',
+        }}
+      >
+        📍 Enable location for weather-aware suggestions
+      </button>
+    )
+    return null
+  }
+
   return (
     <div>
       {/* Page title */}
@@ -107,15 +204,11 @@ export default function OutfitSuggester({ messages, setMessages, wardrobe, setWa
             key={t.id}
             onClick={() => setSubTab(t.id)}
             style={{
-              flex: 1,
-              padding: '9px 0',
-              borderRadius: 10,
+              flex: 1, padding: '9px 0', borderRadius: 10,
               border: subTab === t.id ? 'none' : '1.5px solid var(--border)',
               background: subTab === t.id ? 'var(--accent)' : 'transparent',
               color: subTab === t.id ? '#fff' : 'var(--text)',
-              fontWeight: 600,
-              fontSize: 14,
-              cursor: 'pointer',
+              fontWeight: 600, fontSize: 14, cursor: 'pointer',
             }}
           >
             {t.label}
@@ -126,6 +219,9 @@ export default function OutfitSuggester({ messages, setMessages, wardrobe, setWa
       {/* AI Stylist tab */}
       {subTab === 'ai' && (
         <div>
+          {/* Location pill */}
+          <LocationPill />
+
           <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 8 }}>
             {!isEmpty && (
               <button className="btn btn-ghost" style={{ width: 'auto', padding: '8px 14px', fontSize: 13 }} onClick={reset}>
@@ -137,7 +233,9 @@ export default function OutfitSuggester({ messages, setMessages, wardrobe, setWa
           {isEmpty && (
             <div>
               <p className="text-muted" style={{ marginBottom: 16, lineHeight: 1.5 }}>
-                Describe where you're going and the weather — then keep chatting to fine-tune.
+                {locationData?.city
+                  ? `I know you're in ${locationData.city} — ask me anything and I'll factor in the forecast.`
+                  : 'Describe where you're going and I'll suggest an outfit from your wardrobe.'}
               </p>
               <div className="filter-bar" style={{ marginBottom: 16 }}>
                 {QUICK_CONTEXTS.map(q => (
@@ -171,7 +269,6 @@ export default function OutfitSuggester({ messages, setMessages, wardrobe, setWa
                       {savedMsgs.has(i) ? (
                         <span style={{ fontSize: 12, color: '#2e7d52', fontWeight: 600 }}>✓ Saved to My Outfits</span>
                       ) : saveTarget?.msgIndex === i ? (
-                        /* Inline save form */
                         <div style={{
                           display: 'flex', gap: 6, alignItems: 'center',
                           background: 'var(--surface)', borderRadius: 12,
@@ -249,7 +346,13 @@ export default function OutfitSuggester({ messages, setMessages, wardrobe, setWa
 
           <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end' }}>
             <textarea
-              placeholder={isEmpty ? 'e.g. Work presentation, 22°C, need to look polished' : 'Ask a follow-up…'}
+              placeholder={
+                isEmpty
+                  ? locationData?.city
+                    ? `What's the occasion? I'll check the ${locationData.city} forecast…`
+                    : 'e.g. Work presentation tomorrow, need to look polished'
+                  : 'Ask a follow-up…'
+              }
               value={input}
               onChange={e => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
