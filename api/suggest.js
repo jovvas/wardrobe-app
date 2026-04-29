@@ -44,6 +44,9 @@ export default async function handler(req, res) {
     `List only the IDs of the items you are including in the outfit. ` +
     `Omit this line entirely when giving general advice, asking questions, or not recommending a specific combination.`
 
+  // Strip any extra properties (e.g. item_ids) — Anthropic only accepts role + content
+  const cleanMessages = messages.map(({ role, content }) => ({ role, content }))
+
   try {
     const anthropicRes = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
@@ -56,7 +59,7 @@ export default async function handler(req, res) {
         model: 'claude-sonnet-4-6',
         max_tokens: 1024,
         system: systemPrompt,
-        messages,
+        messages: cleanMessages,
       }),
     })
 
